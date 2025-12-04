@@ -3,130 +3,64 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Weighted Random Image Loader</title>
+  <title>Random Image Display</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #111; color: #eee; }
-    .container { max-width: 900px; margin: 0 auto; }
-    #imageFrame { display: block; max-width: 100%; height: auto; border-radius: 8px; }
-    .controls { margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    button { padding: 0.5rem 0.75rem; border: 1px solid #666; background: #222; color: #eee; border-radius: 6px; cursor: pointer; }
-    button:hover { background: #333; }
-    label { display: inline-flex; align-items: center; gap: 0.5rem; }
-    input[type="number"] { width: 5rem; }
-    .caption { margin-top: 0.5rem; color: #bbb; font-size: 0.9rem; }
+    body {
+      margin: 0;
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Weighted Random Image Loader</h1>
-    <img id="imageFrame" alt="Random" />
-    <div class="caption" id="caption"></div>
-
-    <div class="controls">
-      <button id="nextBtn">Next Image</button>
-      <label>
-        Auto (sec):
-        <input type="number" id="intervalInput" min="1" value="10" />
-      </label>
-      <button id="startAutoBtn">Start Auto</button>
-      <button id="stopAutoBtn">Stop Auto</button>
-      <button id="shuffleBtn">Shuffle Weights</button>
-    </div>
-  </div>
+  <img id="imageFrame" alt="Random Image" />
 
   <script>
-    /**
-     * Provide your images and their weights here.
-     * Higher weight = higher chance to be picked.
-     * You can group by folders if you like (e.g., 'images/nature/...')
-     */
+    // List of images with weights
     const images = [
-      { src: 'images/pic1.jpeg', label: 'Pic 1', weight: 5 },
-
-      // Add more...
+      { src: 'images/pic1.jpeg', weight: 5 },
     ];
 
-    // ---------- Utility: weighted random pick ----------
     function pickWeighted(items) {
-      const total = items.reduce((sum, it) => sum + (it.weight || 0), 0);
-      if (total <= 0) return null;
+      const total = items.reduce((sum, it) => sum + it.weight, 0);
       let r = Math.random() * total;
       for (const it of items) {
-        r -= (it.weight || 0);
+        r -= it.weight;
         if (r <= 0) return it;
       }
-      return items[items.length - 1]; // Fallback
+      return items[items.length - 1];
     }
 
-    // ---------- Avoid immediate repeats ----------
     let lastSrc = null;
-    function pickNotSameAsLast(items, maxTries = 10) {
+    function pickNotSameAsLast(items) {
       let choice;
-      for (let i = 0; i < maxTries; i++) {
+      do {
         choice = pickWeighted(items);
-        if (!choice || choice.src !== lastSrc) break;
-      }
+      } while (choice.src === lastSrc && items.length > 1);
+      lastSrc = choice.src;
       return choice;
     }
 
-    // ---------- Preload and display ----------
     const imgEl = document.getElementById('imageFrame');
-    const captionEl = document.getElementById('caption');
 
-    function preload(src) {
-      return new Promise((resolve, reject) => {
-        const temp = new Image();
-        temp.onload = () => resolve(src);
-        temp.onerror = reject;
-        temp.src = src;
-      });
-    }
-
-    async function showRandom() {
+    function showRandom() {
       const choice = pickNotSameAsLast(images);
-      if (!choice) return;
-
-      try {
-        await preload(choice.src);
-        imgEl.src = choice.src;
-        captionEl.textContent = `${choice.label || choice.src} (weight: ${choice.weight})`;
-        lastSrc = choice.src;
-      } catch (err) {
-        console.warn('Failed to load:', choice.src, err);
-        captionEl.textContent = `Failed to load ${choice.src}`;
-      }
+      imgEl.src = choice.src;
     }
 
-    // ---------- Auto-rotate ----------
-    const intervalInput = document.getElementById('intervalInput');
-    let timer = null;
-
-    function startAuto() {
-      const sec = parseFloat(intervalInput.value || '10');
-      stopAuto();
-      timer = setInterval(showRandom, Math.max(sec, 1) * 1000);
-    }
-    function stopAuto() {
-      if (timer) clearInterval(timer);
-      timer = null;
-    }
-
-    // ---------- Optional: shuffle weights uniformly (demo button) ----------
-    function shuffleWeights() {
-      for (const it of images) {
-        it.weight = Math.max(1, Math.round(Math.random() * 10));
-      }
-      captionEl.textContent = 'Weights shuffled (1–10).';
-    }
-
-    // ---------- Wire up controls ----------
-    document.getElementById('nextBtn').addEventListener('click', showRandom);
-    document.getElementById('startAutoBtn').addEventListener('click', startAuto);
-    document.getElementById('stopAutoBtn').addEventListener('click', stopAuto);
-    document.getElementById('shuffleBtn').addEventListener('click', shuffleWeights);
-
-    // First render
+    // Show first image
     showRandom();
+
+    // Auto-rotate every 10 seconds (optional)
+    setInterval(showRandom, 10000);
   </script>
 </body>
 </html>
